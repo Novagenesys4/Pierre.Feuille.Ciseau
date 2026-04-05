@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pierre · Feuille · Ciseaux</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --surface: rgba(255,255,255,0.04);
+      --border: rgba(255,255,255,0.08);
+      --player: #f5a623;
+      --ai: #00d9ff;
+      --win: #4ade80;
+      --lose: #f87171;
+      --draw: #a78bfa;
+      --text: #f0f0f0;
+      --muted: rgba(240,240,240,0.4);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 30px 20px 60px;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* animated background */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(ellipse at 30% 20%, rgba(245,166,35,0.06) 0%, transparent 50%),
+                  radial-gradient(ellipse at 70% 80%, rgba(0,217,255,0.06) 0%, transparent 50%);
+      animation: bgPulse 8s ease-in-out infinite alternate;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    @keyframes bgPulse {
+      0% { transform: scale(1) rotate(0deg); }
+      100% { transform: scale(1.1) rotate(3deg); }
+    }
+
+    .container { position: relative; z-index: 1; width: 100%; max-width: 700px; }
+
+    /* Header */
+    header {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    header h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(42px, 8vw, 72px);
+      letter-spacing: 4px;
+      background: linear-gradient(135deg, var(--player) 0%, #fff 50%, var(--ai) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+    }
+
+    header p {
+      color: var(--muted);
+      font-size: 13px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-top: 6px;
+    }
+
+    /* Score board */
+    .scoreboard {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 16px;
+      align-items: center;
+      margin-bottom: 28px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 20px 24px;
+      backdrop-filter: blur(10px);
+    }
+
+    .score-side {
+      text-align: center;
+    }
+
+    .score-label {
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .score-num {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 56px;
+      line-height: 1;
+      transition: transform 0.2s ease;
+    }
+
+    .score-side.vous .score-num { color: var(--player); }
+    .score-side.ia .score-num { color: var(--ai); }
+
+    .score-num.bump {
+      animation: bump 0.3s ease;
+    }
+    @keyframes bump {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.4); }
+      100% { transform: scale(1); }
+    }
+
+    .score-sep {
+      text-align: center;
+    }
+
+    .score-sep span {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 28px;
+      color: var(--border);
+      display: block;
+    }
+
+    #reset-btn {
+      font-size: 11px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 5px 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: block;
+      margin: 10px auto 0;
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    #reset-btn:hover {
+      border-color: var(--lose);
+      color: var(--lose);
+    }
+
+    /* Message */
+    .message-box {
+      text-align: center;
+      min-height: 72px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+    }
+
+    #message {
+      font-size: clamp(18px, 4vw, 26px);
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+
+    #message.win  { color: var(--win); }
+    #message.lose { color: var(--lose); }
+    #message.draw { color: var(--draw); }
+    #message.idle { color: var(--text); }
+
+    #round-info {
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: 1px;
+      margin-top: 4px;
+    }
+
+    /* Arena */
+    .arena {
+      display: grid;
+      grid-template-columns: 1fr 60px 1fr;
+      gap: 12px;
+      align-items: start;
+      margin-bottom: 28px;
+    }
+
+    .arena-side { display: flex; flex-direction: column; gap: 10px; }
+
+    .arena-label {
+      text-align: center;
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .arena-side.vous .arena-label { color: var(--player); }
+    .arena-side.ia .arena-label { color: var(--ai); }
+
+    .arena-vs {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding-top: 40px;
+    }
+
+    .arena-vs span {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 22px;
+      color: var(--border);
+    }
+
+    /* Choice buttons */
+    .choice-btn {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 18px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      backdrop-filter: blur(8px);
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+
+    .choice-btn .icon { font-size: 30px; line-height: 1; }
+    .choice-btn .label { font-size: 15px; font-weight: 500; color: var(--text); }
+    .choice-btn .sublabel { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+    /* player buttons */
+    .vous .choice-btn:hover:not(.disabled) {
+      border-color: var(--player);
+      background: rgba(245,166,35,0.08);
+      transform: translateX(4px);
+    }
+
+    .vous .choice-btn.selected {
+      border-color: var(--player);
+      background: rgba(245,166,35,0.15);
+      box-shadow: 0 0 20px rgba(245,166,35,0.2);
+    }
+
+    .vous .choice-btn.disabled {
+      opacity: 0.35;
+      cursor: default;
+    }
+
+    /* ai buttons */
+    .ia .choice-btn {
+      flex-direction: row-reverse;
+      cursor: default;
+    }
+
+    .ia .choice-btn .label,
+    .ia .choice-btn .sublabel { text-align: right; }
+
+    .ia .choice-btn.selected {
+      border-color: var(--ai);
+      background: rgba(0,217,255,0.1);
+      box-shadow: 0 0 20px rgba(0,217,255,0.2);
+    }
+
+    /* thinking animation on AI side */
+    .ia .choice-btn.thinking {
+      animation: thinking 0.4s ease infinite alternate;
+      border-color: rgba(0,217,255,0.3);
+    }
+
+    @keyframes thinking {
+      0%  { background: rgba(0,217,255,0.03); }
+      100%{ background: rgba(0,217,255,0.08); }
+    }
+
+    /* Next / Actions */
+    .actions { text-align: center; }
+
+    #next-btn {
+      display: none;
+      padding: 14px 42px;
+      border-radius: 50px;
+      background: linear-gradient(135deg, var(--player), #e8900a);
+      color: #000;
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 20px rgba(245,166,35,0.3);
+    }
+
+    #next-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(245,166,35,0.4);
+    }
+
+    #next-btn.visible { display: inline-block; }
+
+    /* History */
+    .history-section {
+      margin-top: 32px;
+    }
+
+    .history-title {
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+      text-align: center;
+    }
+
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .history-list::-webkit-scrollbar { width: 3px; }
+    .history-list::-webkit-scrollbar-track { background: transparent; }
+    .history-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .history-item {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 8px;
+      align-items: center;
+      padding: 8px 14px;
+      border-radius: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      font-size: 13px;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .history-item .h-player { color: var(--player); font-weight: 500; }
+    .history-item .h-ai     { color: var(--ai); font-weight: 500; text-align: right; }
+    .history-item .h-result {
+      text-align: center;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+
+    .h-result.win  { background: rgba(74,222,128,0.15); color: var(--win); }
+    .h-result.lose { background: rgba(248,113,113,0.15); color: var(--lose); }
+    .h-result.draw { background: rgba(167,139,250,0.15); color: var(--draw); }
+
+    /* footer */
+    footer {
+      margin-top: 40px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* result flash overlay */
+    .result-flash {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 50;
+      opacity: 0;
+      transition: opacity 0.1s;
+    }
+
+    .result-flash.show { opacity: 1; animation: flash 0.4s ease forwards; }
+
+    @keyframes flash {
+      0%   { opacity: 0.3; }
+      100% { opacity: 0; }
+    }
+
+    .result-flash.win  { background: radial-gradient(ellipse at center, rgba(74,222,128,0.15), transparent 70%); }
+    .result-flash.lose { background: radial-gradient(ellipse at center, rgba(248,113,113,0.15), transparent 70%); }
+    .result-flash.draw { background: radial-gradient(ellipse at center, rgba(167,139,250,0.15), transparent 70%); }
+
+    @media (max-width: 480px) {
+      .arena { grid-template-columns: 1fr 40px 1fr; gap: 8px; }
+      .choice-btn { padding: 10px 12px; gap: 8px; }
+      .choice-btn .icon { font-size: 22px; }
+      .choice-btn .label { font-size: 13px; }
+      .scoreboard { padding: 16px; }
+      .score-num { font-size: 42px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="result-flash" id="flash"></div>
+
+<div class="container">
+  <header>
+    <h1>Pierre·Feuille·Ciseaux</h1>
+    <p>Affrontez l'intelligence artificielle</p>
+  </header>
+
+  <div class="scoreboard">
+    <div class="score-side vous">
+      <div class="score-label">Vous</div>
+      <div class="score-num" id="score-joueur">0</div>
+    </div>
+    <div class="score-sep">
+      <span>VS</span>
+      <button id="reset-btn">↺ Reset</button>
+    </div>
+    <div class="score-side ia">
+      <div class="score-label">IA</div>
+      <div class="score-num" id="score-ordinateur">0</div>
+    </div>
+  </div>
+
+  <div class="message-box">
+    <div id="message" class="idle">Faites votre choix !</div>
+    <div id="round-info">Manche 1</div>
+  </div>
+
+  <div class="arena">
+    <!-- VOUS -->
+    <div class="arena-side vous">
+      <div class="arena-label">Votre choix</div>
+      <div class="choice-btn btn-joueur" data-choice="pierre">
+        <span class="icon">✊</span>
+        <div><div class="label">Pierre</div><div class="sublabel">Écrase les ciseaux</div></div>
+      </div>
+      <div class="choice-btn btn-joueur" data-choice="feuille">
+        <span class="icon">✋</span>
+        <div><div class="label">Feuille</div><div class="sublabel">Enveloppe la pierre</div></div>
+      </div>
+      <div class="choice-btn btn-joueur" data-choice="ciseaux">
+        <span class="icon">✌️</span>
+        <div><div class="label">Ciseaux</div><div class="sublabel">Coupe la feuille</div></div>
+      </div>
+    </div>
+
+    <!-- VS -->
+    <div class="arena-vs"><span>—</span></div>
+
+    <!-- IA -->
+    <div class="arena-side ia">
+      <div class="arena-label">IA</div>
+      <div class="choice-btn btn-ordi" data-choice="pierre" id="o-pierre">
+        <span class="icon">✊</span>
+        <div><div class="label">Pierre</div><div class="sublabel">Écrase les ciseaux</div></div>
+      </div>
+      <div class="choice-btn btn-ordi" data-choice="feuille" id="o-feuille">
+        <span class="icon">✋</span>
+        <div><div class="label">Feuille</div><div class="sublabel">Enveloppe la pierre</div></div>
+      </div>
+      <div class="choice-btn btn-ordi" data-choice="ciseaux" id="o-ciseaux">
+        <span class="icon">✌️</span>
+        <div><div class="label">Ciseaux</div><div class="sublabel">Coupe la feuille</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button id="next-btn">Tour suivant →</button>
+  </div>
+
+  <div class="history-section" id="history-section" style="display:none">
+    <div class="history-title">Historique des manches</div>
+    <div class="history-list" id="history-list"></div>
+  </div>
+
+  <footer>✌️ Créé par 👑 Néhémie Kouassi 👑</footer>
+</div>
+
+<script>
+  const CHOICES = ['pierre', 'feuille', 'ciseaux'];
+  const ICONS = { pierre: '✊', feuille: '✋', ciseaux: '✌️' };
+  const LABELS = { pierre: 'Pierre', feuille: 'Feuille', ciseaux: 'Ciseaux' };
+
+  const MESSAGES = {
+    win: [
+      '🔥 Brillant ! L\'IA est dépassée.',
+      '💥 Excellent coup, champion !',
+      '⚡ Vous lisez dans ses circuits !',
+      '🎯 Parfait. L\'IA accuse le coup.',
+    ],
+    lose: [
+      '🤖 L\'IA vous a prédit... Retentez !',
+      '😤 Elle apprend vite. À vous de jouer !',
+      '🧠 L\'IA avait calculé ça. Rebondissez !',
+      '👾 Coup dur. La revanche est pour vous.',
+    ],
+    draw: [
+      '🤝 Égalité ! Vous pensez pareil.',
+      '😶 Même réflexe. Impressionnant.',
+      '⚖️ Miroir. Rejouer !',
+    ],
+  };
+
+  let scoreJoueur = 0;
+  let scoreOrdinateur = 0;
+  let manche = 1;
+  let history = [];
+  let locked = false;
+
+  const elScoreJ = document.getElementById('score-joueur');
+  const elScoreO = document.getElementById('score-ordinateur');
+  const elMessage = document.getElementById('message');
+  const elRound   = document.getElementById('round-info');
+  const elNext    = document.getElementById('next-btn');
+  const elFlash   = document.getElementById('flash');
+  const elHistSection = document.getElementById('history-section');
+  const elHistList    = document.getElementById('history-list');
+  const btnJoueurs = [...document.querySelectorAll('.btn-joueur')];
+  const btnOrdis   = [...document.querySelectorAll('.btn-ordi')];
+
+  function rand(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+  function setMessage(text, type) {
+    elMessage.textContent = text;
+    elMessage.className = type;
+  }
+
+  function animateScore(el) {
+    el.classList.remove('bump');
+    void el.offsetWidth;
+    el.classList.add('bump');
+  }
+
+  function showFlash(type) {
+    elFlash.className = `result-flash ${type} show`;
+    setTimeout(() => elFlash.className = 'result-flash', 500);
+  }
+
+  function lockButtons() {
+    btnJoueurs.forEach(b => b.classList.add('disabled'));
+    locked = true;
+  }
+
+  function unlockButtons() {
+    btnJoueurs.forEach(b => b.classList.remove('disabled', 'selected'));
+    btnOrdis.forEach(b => b.classList.remove('selected', 'thinking'));
+    locked = false;
+  }
+
+  function clearAI() {
+    btnOrdis.forEach(b => b.classList.remove('selected', 'thinking'));
+  }
+
+  function addHistory(joueur, ordi, result) {
+    history.unshift({ joueur, ordi, result });
+    elHistSection.style.display = 'block';
+
+    const item = document.createElement('div');
+    item.className = 'history-item';
+
+    const labelResult = result === 'win' ? 'VICTOIRE' : result === 'lose' ? 'DÉFAITE' : 'ÉGALITÉ';
+    item.innerHTML = `
+      <span class="h-player">${ICONS[joueur]} ${LABELS[joueur]}</span>
+      <span class="h-result ${result}">${labelResult}</span>
+      <span class="h-ai">${LABELS[ordi]} ${ICONS[ordi]}</span>
+    `;
+    elHistList.prepend(item);
+  }
+
+  function jouer(choixJoueur) {
+    if (locked) return;
+    lockButtons();
+
+    // Highlight player choice
+    btnJoueurs.forEach(b => {
+      b.classList.toggle('selected', b.dataset.choice === choixJoueur);
+    });
+
+    // AI "thinking" animation
+    btnOrdis.forEach(b => b.classList.add('thinking'));
+    setMessage('L\'IA réfléchit…', 'idle');
+
+    setTimeout(() => {
+      const choixOrdi = rand(CHOICES);
+      clearAI();
+
+      // Highlight AI choice
+      btnOrdis.forEach(b => {
+        if (b.dataset.choice === choixOrdi) b.classList.add('selected');
+      });
+
+      // Determine result
+      let result;
+      if (choixJoueur === choixOrdi) {
+        result = 'draw';
+      } else if (
+        (choixJoueur === 'pierre'  && choixOrdi === 'ciseaux') ||
+        (choixJoueur === 'feuille' && choixOrdi === 'pierre')  ||
+        (choixJoueur === 'ciseaux' && choixOrdi === 'feuille')
+      ) {
+        result = 'win';
+      } else {
+        result = 'lose';
+      }
+
+      if (result === 'win') {
+        scoreJoueur++;
+        elScoreJ.textContent = scoreJoueur;
+        animateScore(elScoreJ);
+      } else if (result === 'lose') {
+        scoreOrdinateur++;
+        elScoreO.textContent = scoreOrdinateur;
+        animateScore(elScoreO);
+      }
+
+      setMessage(rand(MESSAGES[result]), result);
+      showFlash(result);
+      addHistory(choixJoueur, choixOrdi, result);
+
+      elNext.classList.add('visible');
+    }, 900);
+  }
+
+  function nextTurn() {
+    manche++;
+    elRound.textContent = `Manche ${manche}`;
+    unlockButtons();
+    setMessage('Faites votre choix !', 'idle');
+    elNext.classList.remove('visible');
+  }
+
+  function reset() {
+    scoreJoueur = 0;
+    scoreOrdinateur = 0;
+    manche = 1;
+    history = [];
+    elScoreJ.textContent = 0;
+    elScoreO.textContent = 0;
+    elRound.textContent = 'Manche 1';
+    elHistList.innerHTML = '';
+    elHistSection.style.display = 'none';
+    unlockButtons();
+    setMessage('Faites votre choix !', 'idle');
+    elNext.classList.remove('visible');
+  }
+
+  // Events
+  btnJoueurs.forEach(b => b.addEventListener('click', () => jouer(b.dataset.choice)));
+  document.getElementById('next-btn').addEventListener('click', nextTurn);
+  document.getElementById('reset-btn').addEventListener('click', reset);
+</script>
+</body>
+</html>
