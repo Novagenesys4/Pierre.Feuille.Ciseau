@@ -4,6 +4,7 @@ Un jeu interactif et moderne pour défier une intelligence artificielle dans le 
 Développé avec **HTML5**, **CSS3** et **JavaScript**, ce projet met en avant une interface utilisateur soignée, des animations fluides et une expérience utilisateur immersive.
 
 Le jeu est accéssible à l'adresse (https://Novagenesys4.github.io/pierre.feuille.ciseaux)
+Profitez bien...
 ---
 
 ## 🎮 Fonctionnalités
