@@ -3,7 +3,7 @@
 Un jeu interactif et moderne pour défier une intelligence artificielle dans le célèbre jeu Pierre · Feuille · Ciseaux.  
 Développé avec **HTML5**, **CSS3** et **JavaScript**, ce projet met en avant une interface utilisateur soignée, des animations fluides et une expérience utilisateur immersive.
 
-Le jeu est accéssible à l'adresse (https://votre-utilisateur.github.io/pierre-feuille-ciseaux)
+Le jeu est accéssible à l'adresse (https://Novagenesys4.github.io/pierre.feuille.ciseaux)
 ---
 
 ## 🎮 Fonctionnalités
@@ -33,4 +33,4 @@ Le jeu est accéssible à l'adresse (https://votre-utilisateur.github.io/pierre-
 ### En local
 1. **Clonez le dépôt** :
    ```bash
-   git clone https://github.com/Novagenesys4/pierre-feuille-ciseaux.git
+   git clone https://github.com/Novagenesys4/Pierre.Feuille.Ciseau.git
